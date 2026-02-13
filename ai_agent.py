@@ -17,6 +17,18 @@ class SimpleAI:
         if not os.path.exists("personality.txt"):
             with open("personality.txt", "w") as file:
                 file.write("You are Xero, a friendly chatting coding bot but can also just have friendly conversations.")
+        self.conversation = []
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+        self.session = requests.Session()
+        retries = Retry(total=5, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        self.session.mount("http://", HTTPAdapter(max_retries=retries))
+        self.session.mount("https://", HTTPAdapter(max_retries=retries))
+
+        # Ensure personality.txt exists
+        if not os.path.exists("personality.txt"):
+            with open("personality.txt", "w") as file:
+                file.write("You are Xero, a friendly chatting coding bot but can also just have friendly conversations.")
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.session = requests.Session()
@@ -35,12 +47,11 @@ class SimpleAI:
         with open("personality.txt", "r") as file:
             personality = file.read().strip()
 
+        self.conversation.append({"role": "user", "content": user_text})
+
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": "system", "content": personality},
-                {"role": "user", "content": user_text},
-            ],
+            "messages": self.conversation,
             "temperature": 0.2,
             "max_tokens": 200,
             "stream": False,
@@ -59,6 +70,8 @@ class SimpleAI:
         response_data = r.json()
         assistant_message = response_data.get("choices", [{}])[0].get("message", {}).get("content", "")
         
+        self.conversation.append({"role": "assistant", "content": assistant_message})
+
         if "look up" in assistant_message.lower() or "search" in assistant_message.lower():
             query = assistant_message.split("for", 1)[1].strip()
             self.search_internet(query)
@@ -73,6 +86,10 @@ class SimpleAI:
                 return f"Summary of {file_path}:\n{summary}"
 
         return assistant_message
+
+    def clear_conversation(self):
+        self.conversation = []
+        print("Conversation cleared.")
 
     def search_internet(self, query: str):
         """
@@ -107,6 +124,8 @@ if __name__ == "__main__":
         if user_input.lower() == "quit":
             print("goodbye see you soon!")
             break
+        elif user_input.lower() == "clear":
+            ai.clear_conversation()
         elif user_input.lower().startswith("summarize"):
             parts = user_input.split(" ", 1)
             if len(parts) < 2:
