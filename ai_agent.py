@@ -78,7 +78,10 @@ if __name__ == "__main__":
     ai = SimpleAI("http://127.0.0.1:8080/v1")
     while True:
         user_input = input("You: ")
-        if user_input.lower() in ["exit", "quit"]:
+        if user_input.lower() == "exit":
+            print("goodbye see you soon!")
+            break
+        elif user_input.lower() == "quit":
             print("goodbye see you soon!")
             break
         else:
