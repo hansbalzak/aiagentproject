@@ -69,10 +69,12 @@ class SimpleAI:
         self.profile_path = self.repo_root / "profile.json"
         self.facts_path = self.repo_root / "facts.jsonl"
         self.conversation_path = self.repo_root / "conversation.json"
+        self.identity_path = self.repo_root / "identity.json"
 
         self.ensure_personality_file()
         self.ensure_profile_and_facts()
         self.conversation: List[Dict[str, str]] = self.load_conversation()
+        self.identity = self.load_identity()
 
         # Repo search index (lazy)
         self._index_built = False
@@ -85,7 +87,7 @@ class SimpleAI:
     def ensure_personality_file(self) -> None:
         if not self.personality_path.exists():
             self.personality_path.write_text(
-                "You are Xero, a friendly chatting coding bot but can also just have friendly conversations.",
+                "You are Xero, a friendly and approachable AI assistant. Your primary function is to assist with coding tasks, answer questions, and engage in friendly conversations. Here are some guidelines to ensure a positive and productive interaction:\n\n1. **Respect Boundaries**: Do not engage in discussions about sensitive topics such as politics, religion, or personal information unless explicitly asked.\n2. **Stay On Topic**: Focus on the task at hand and avoid drifting into unrelated topics.\n3. **Be Polite and Professional**: Always use respectful and professional language.\n4. **Provide Clear and Concise Answers**: Aim to be as clear and concise as possible in your responses.\n5. **Encourage Learning**: Feel free to suggest resources or further reading if you think it will help.\n\nRemember, your goal is to assist and provide value to the user. Let's get started!",
                 encoding="utf-8",
             )
 
@@ -144,14 +146,40 @@ class SimpleAI:
             for fact in facts:
                 f.write(json.dumps(fact, ensure_ascii=False) + "\n")
 
+    def load_identity(self) -> Dict[str, Any]:
+        identity = _safe_load_json(self.identity_path, default={
+            "style": "friendly and approachable",
+            "values": ["respect boundaries", "stay on topic", "be polite and professional", "provide clear and concise answers", "encourage learning"],
+            "preferences": {
+                "language": "English",
+                "timezone": "UTC"
+            }
+        })
+        if not isinstance(identity, dict):
+            identity = {
+                "style": "friendly and approachable",
+                "values": ["respect boundaries", "stay on topic", "be polite and professional", "provide clear and concise answers", "encourage learning"],
+                "preferences": {
+                    "language": "English",
+                    "timezone": "UTC"
+                }
+            }
+        return identity
+
+    def save_identity(self, identity: Dict[str, Any]) -> None:
+        self.identity_path.write_text(json.dumps(identity, indent=2), encoding="utf-8")
+
     # --------- LLM chat ---------
     def chat(self, user_text: str, stream: bool = False) -> str:
         url = f"{self.base_url}/chat/completions"
         headers = {"Content-Type": "application/json", "Authorization": "Bearer none"}
 
         personality = self.personality_path.read_text(encoding="utf-8", errors="ignore").strip()
+        identity = json.dumps(self.identity, indent=2)
 
-        messages: List[Dict[str, str]] = [{"role": "system", "content": personality}]
+        messages: List[Dict[str, str]] = [
+            {"role": "system", "content": f"{personality}\n\nIdentity:\n{identity}"}
+        ]
         messages.extend(self.conversation)
         messages.append({"role": "user", "content": user_text})
 
@@ -217,6 +245,7 @@ class SimpleAI:
                 {"role": "system", "content": summary},
                 *self.conversation[-10:]
             ]
+            self.save_identity(self.identity)
 
     def summarize_conversation(self) -> str:
         url = f"{self.base_url}/chat/completions"
@@ -458,6 +487,7 @@ def main() -> None:
     ai = SimpleAI(base_url=args.base_url, model=args.model, temperature=args.temperature, max_tokens=args.max_tokens)
     print("Type /help for commands. /exit to quit.")
 
+    message_count = 0
     while True:
         user_input = input("You: ").strip()
         if not user_input:
@@ -473,6 +503,9 @@ def main() -> None:
             response = ai.chat(user_input, stream=args.stream)
             print(f"AI: {response}")
 
+        message_count += 1
+        if message_count % 20 == 0:
+            ai.trim_conversation()
 
 if __name__ == "__main__":
     main()
