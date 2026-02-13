@@ -17,6 +17,17 @@ class SimpleAI:
         if not os.path.exists("personality.txt"):
             with open("personality.txt", "w") as file:
                 file.write("You are Xero, a friendly chatting coding bot but can also just have friendly conversations.")
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+        self.session = requests.Session()
+        retries = Retry(total=5, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        self.session.mount("http://", HTTPAdapter(max_retries=retries))
+        self.session.mount("https://", HTTPAdapter(max_retries=retries))
+
+        # Ensure personality.txt exists
+        if not os.path.exists("personality.txt"):
+            with open("personality.txt", "w") as file:
+                file.write("You are Xero, a friendly chatting coding bot but can also just have friendly conversations.")
 
     def chat(self, user_text: str) -> str:
         url = f"{self.base_url}/chat/completions"
@@ -52,6 +63,10 @@ class SimpleAI:
             query = assistant_message.split("for", 1)[1].strip()
             self.search_internet(query)
             return f"Searching the internet for: {query}"
+        elif "summarize" in assistant_message.lower():
+            file_path = assistant_message.split("file", 1)[1].strip()
+            summary = self.summarize_file(file_path)
+            return f"Summary of {file_path}:\n{summary}"
 
         return assistant_message
 
@@ -64,6 +79,11 @@ class SimpleAI:
         search_url = base_url + requests.utils.quote(query)
         print(f"Opening browser for: {search_url}")
         webbrowser.open(search_url)
+
+    def summarize_file(self, file_path: str) -> str:
+        with open(file_path, "r") as file:
+            content = file.read()
+        return self.chat(f"Summarize the following text:\n{content}")
 
     def hello(self):
         print(self.chat("hello"))
@@ -81,6 +101,10 @@ if __name__ == "__main__":
         if user_input.lower() == "quit":
             print("goodbye see you soon!")
             break
+        elif user_input.lower().startswith("summarize"):
+            file_path = user_input.split(" ", 1)[1].strip()
+            summary = ai.summarize_file(file_path)
+            print(f"AI: Summary of {file_path}:\n{summary}")
         else:
             response = ai.chat(user_input)
             print(f"AI: {response}")
