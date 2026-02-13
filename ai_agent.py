@@ -490,5 +490,23 @@ class SimpleAI:
         self.save_facts(updated_facts)
         return "Facts decayed and low-confidence ones removed."
 
+def main():
+    parser = argparse.ArgumentParser(description="Simple AI Agent")
+    parser.add_argument("--base_url", type=str, required=True, help="Base URL for the LLM API")
+    parser.add_argument("--model", type=str, required=True, help="Model name")
+    parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for the model")
+    parser.add_argument("--max_tokens", type=int, default=100, help="Max tokens for the model response")
+
+    args = parser.parse_args()
+
+    ai = SimpleAI(args.base_url, args.model, args.temperature, args.max_tokens)
+
+    while True:
+        user_input = input("User: ")
+        if user_input in ("/exit", "/quit"):
+            break
+        response = ai.chat(user_input)
+        print(f"Assistant: {response}")
+
 if __name__ == "__main__":
     main()
