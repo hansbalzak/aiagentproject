@@ -4,6 +4,10 @@ import os
 import sys
 import subprocess
 import json
+import ast
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
+import datetime
 
 def ensure_venv():
     venv_path = os.path.join(os.path.dirname(__file__), "venv")
@@ -55,6 +59,8 @@ class SimpleAI:
                 )
 
         self.conversation = self.load_conversation()
+        self.profile = self.load_profile()
+        self.facts = self.load_facts()
 
     def load_conversation(self):
         conversation_file = "conversation.json"
@@ -63,10 +69,39 @@ class SimpleAI:
                 return json.load(f)
         return []
 
+    def load_profile(self):
+        profile_file = "profile.json"
+        if os.path.exists(profile_file):
+            with open(profile_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return {
+            "name": "",
+            "preferred_language": "",
+            "bio": ""
+        }
+
+    def load_facts(self):
+        facts_file = "facts.jsonl"
+        if os.path.exists(facts_file):
+            with open(facts_file, "r", encoding="utf-8") as f:
+                return [json.loads(line) for line in f]
+        return []
+
     def save_conversation(self):
         conversation_file = "conversation.json"
         with open(conversation_file, "w", encoding="utf-8") as f:
             json.dump(self.conversation, f)
+
+    def save_profile(self):
+        profile_file = "profile.json"
+        with open(profile_file, "w", encoding="utf-8") as f:
+            json.dump(self.profile, f)
+
+    def save_facts(self):
+        facts_file = "facts.jsonl"
+        with open(facts_file, "w", encoding="utf-8") as f:
+            for fact in self.facts:
+                f.write(json.dumps(fact) + "\n")
 
     def chat(self, user_text: str) -> str:
         url = f"{self.base_url}/chat/completions"
@@ -118,6 +153,9 @@ class SimpleAI:
         print("  /exit, /quit     Exit the program")
         print("  /self_improve    Improve the AI's code")
         print("  summarize <path> Summarize a local file (text only)")
+        print("  /remember <fact> Remember a fact")
+        print("  /forget <id>     Forget a fact")
+        print("  /profile         Show profile information")
 
     def summarize_file(self, file_path: str) -> str:
         if not os.path.exists(file_path):
@@ -138,6 +176,30 @@ class SimpleAI:
             return "No syntax errors found."
         except SyntaxError as e:
             return f"Syntax error found: {e}"
+
+    def remember_fact(self, fact):
+        fact_id = len(self.facts) + 1
+        fact_entry = {
+            "id": fact_id,
+            "fact": fact,
+            "confidence": 1.0,
+            "source": "user",
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        self.facts.append(fact_entry)
+        self.save_facts()
+        print(f"Fact {fact_id} remembered.")
+
+    def forget_fact(self, fact_id):
+        self.facts = [fact for fact in self.facts if fact["id"] != int(fact_id)]
+        self.save_facts()
+        print(f"Fact {fact_id} forgotten.")
+
+    def show_profile(self):
+        profile = self.profile
+        print(f"Name: {profile['name']}")
+        print(f"Preferred Language: {profile['preferred_language']}")
+        print(f"Bio: {profile['bio']}")
 
 
 
@@ -163,6 +225,20 @@ def main():
             file_path = user_input.split(" ", 1)[1].strip()
             summary = ai.summarize_file(file_path)
             print(f"AI: Summary of {file_path}:\n{summary}")
+            continue
+
+        if cmd.startswith("/remember "):
+            fact = user_input.split(" ", 1)[1].strip()
+            ai.remember_fact(fact)
+            continue
+
+        if cmd.startswith("/forget "):
+            fact_id = user_input.split(" ", 1)[1].strip()
+            ai.forget_fact(fact_id)
+            continue
+
+        if cmd == "/profile":
+            ai.show_profile()
             continue
 
 
