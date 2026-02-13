@@ -23,6 +23,10 @@ class SimpleAI:
         # Ensure personality.txt exists
         self.ensure_personality_file()
 
+        self.plan = []
+        self.current_step = 0
+        self.loop_detected = False
+
     def ensure_personality_file(self):
         if not os.path.exists("personality.txt"):
             with open("personality.txt", "w") as f:
@@ -58,16 +62,30 @@ class SimpleAI:
         pass
 
     def create_plan(self, user_text: str):
-        # Create a plan based on user input
-        pass
+        self.plan = [
+            "Step 1: Understand the user's request.",
+            "Step 2: Generate a plan with up to 6 bullets.",
+            "Step 3: Execute one step of the plan.",
+            "Step 4: Check the result of the executed step.",
+            "Step 5: Detect loops.",
+            "Step 6: Stop when the plan is complete."
+        ]
+        self.current_step = 0
+        self.loop_detected = False
+        return "Plan created."
 
     def execute_step(self):
-        # Execute a step in the plan
-        pass
+        if self.current_step >= len(self.plan):
+            return "Plan execution complete."
+        step = self.plan[self.current_step]
+        self.current_step += 1
+        return f"Executing step: {step}"
 
     def check_result(self, result):
-        # Check the result of an executed step
-        pass
+        if "loop detected" in result.lower():
+            self.loop_detected = True
+            return "Loop detected. Stopping execution."
+        return "Result checked."
 
     def clear_conversation(self):
         # Clear the conversation history
@@ -135,6 +153,12 @@ class SimpleAI:
                 return "Invalid command format."
             command_name, args = parts
             return run_shell(command_name, args.split())
+        elif command == "/create_plan":
+            return self.create_plan("")
+        elif command == "/execute_step":
+            return self.execute_step()
+        elif command == "/check_result":
+            return self.check_result("")
         else:
             return "Unknown command."
 
