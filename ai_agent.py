@@ -131,9 +131,6 @@ class SimpleAI:
         print("  - quit: Exit the program.")
         print("  - clear: Clear the conversation.")
         print("  - summarize <file_path>: Summarize the content of the specified file.")
-        print("  - hello: Greet the AI.")
-        print("  - how are you?: Ask the AI how it is.")
-        print("  - goodbye: Say goodbye to the AI.")
 
     def search_internet(self, query: str):
         """
