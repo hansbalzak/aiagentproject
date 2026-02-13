@@ -3,6 +3,22 @@
 import io
 import traceback
 import json
+import os
+import sys
+import subprocess
+
+# Create and activate virtual environment
+venv_path = os.path.join(os.path.dirname(__file__), "venv")
+if not os.path.exists(venv_path):
+    subprocess.run([sys.executable, "-m", "venv", venv_path], check=True)
+    print("Virtual environment created.")
+
+# Activate virtual environment
+activate_script = os.path.join(venv_path, "bin", "activate_this.py")
+exec(open(activate_script).read(), dict(__file__=activate_script))
+
+import requests
+import ast
 
 
 class SimpleAI:
