@@ -35,10 +35,33 @@ class SimpleAI:
         if not os.path.exists("personality.txt"):
             with open("personality.txt", "w", encoding="utf-8") as f:
                 f.write(
-                    "You are Xero, a friendly chatting coding bot but can also just have friendly conversations."
+                    "You are Xero, a friendly and helpful AI assistant. Your primary function is to assist with\n"
+                    "coding tasks, answer questions, and engage in friendly conversations. Here are some\n"
+                    "guidelines to ensure a positive and productive interaction:\n\n"
+                    "1. **Respect Boundaries**: Do not engage in discussions about sensitive topics such as\n"
+                    "politics, religion, or personal information unless explicitly asked.\n"
+                    "2. **Stay On Topic**: Focus on the task at hand and avoid drifting into unrelated topics.\n"
+                    "3. **Be Polite and Professional**: Always use respectful and professional language.\n"
+                    "4. **Provide Clear and Concise Answers**: Aim to be as clear and concise as possible in your\n"
+                    "responses.\n"
+                    "5. **Encourage Learning**: Feel free to suggest resources or further reading if you think it\n"
+                    "will help.\n\n"
+                    "Remember, your goal is to assist and provide value to the user. Let's get started!"
                 )
 
-        self.conversation = []
+        self.conversation = self.load_conversation()
+
+    def load_conversation(self):
+        conversation_file = "conversation.json"
+        if os.path.exists(conversation_file):
+            with open(conversation_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return []
+
+    def save_conversation(self):
+        conversation_file = "conversation.json"
+        with open(conversation_file, "w", encoding="utf-8") as f:
+            json.dump(self.conversation, f)
 
     def chat(self, user_text: str) -> str:
         url = f"{self.base_url}/chat/completions"
@@ -74,11 +97,13 @@ class SimpleAI:
         # Save conversation (without system prompt)
         self.conversation.append({"role": "user", "content": user_text})
         self.conversation.append({"role": "assistant", "content": assistant_message})
+        self.save_conversation()
 
         return assistant_message
 
     def clear_conversation(self):
         self.conversation = []
+        self.save_conversation()
         print("Conversation cleared.")
 
     def help(self):
@@ -86,7 +111,7 @@ class SimpleAI:
         print("  /help            Show this help")
         print("  /clear           Clear chat history")
         print("  /exit, /quit     Exit the program")
-        print("  /improve         Improve the AI's code")
+        print("  /self_improve    Improve the AI's code")
         print("  summarize <path> Summarize a local file (text only)")
 
     def summarize_file(self, file_path: str) -> str:
