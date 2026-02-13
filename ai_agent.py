@@ -81,6 +81,9 @@ if __name__ == "__main__":
         if user_input.lower() == "exit":
             print("goodbye see you soon!")
             break
+        elif user_input.lower() == "quit":
+            print("goodbye see you soon!")
+            break
         else:
             response = ai.chat(user_input)
             print(f"AI: {response}")
