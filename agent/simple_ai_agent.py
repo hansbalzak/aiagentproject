@@ -14,10 +14,13 @@ class SimpleAI:
     def chat(self, user_text: str) -> str:
         url = f"{self.base_url}/chat/completions"
         headers = {"Content-Type": "application/json", "Authorization": "Bearer none"}
+        with open("personality.txt", "r") as file:
+            personality = file.read().strip()
+
         payload = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": "You are a helpful assistant. Reply briefly."},
+                {"role": "system", "content": personality},
                 {"role": "user", "content": user_text},
             ],
             "temperature": 0.2,
