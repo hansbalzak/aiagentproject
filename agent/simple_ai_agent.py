@@ -55,6 +55,16 @@ class SimpleAI:
 
         return assistant_message
 
+    def search_internet(self, query: str):
+        """
+        Simple internet lookup by opening a browser search.
+        This does NOT scrape content, it just launches the user's browser.
+        """
+        base_url = "https://www.google.com/search?q="
+        search_url = base_url + requests.utils.quote(query)
+        print(f"Opening browser for: {search_url}")
+        webbrowser.open(search_url)
+
     def hello(self):
         print(self.chat("hello"))
 
