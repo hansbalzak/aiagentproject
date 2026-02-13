@@ -5,9 +5,15 @@ class SimpleAI:
         self.url = url
 
     def send_command(self, command):
-        response = requests.post(self.url, json={"command": command})
-        print(f"Response status code: {response.status_code}")
-        print(f"Response content: {response.content}")
+        headers = {"Content-Type": "application/json"}
+        data = {"command": command}
+        response = requests.post(self.url, headers=headers, json=data)
+        print(f"Request URL: {self.url}")
+        print(f"Request Headers: {headers}")
+        print(f"Request Data: {data}")
+        print(f"Response Status Code: {response.status_code}")
+        print(f"Response Headers: {response.headers}")
+        print(f"Response Content: {response.content}")
         if response.status_code != 200:
             print(f"Error: {response.json().get('error', 'Unknown error')}")
         return response.json().get("response", "No response")
