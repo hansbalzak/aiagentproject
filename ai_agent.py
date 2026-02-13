@@ -5,6 +5,10 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
+import ast
+import io
+import traceback
+
 class SimpleAI:
     def __init__(self, base_url="http://127.0.0.1:8080/v1", model="gpt-3.5-turbo"):
         self.base_url = base_url.rstrip("/")
@@ -99,23 +103,33 @@ class SimpleAI:
             return "AI: File is not UTF-8 text (binary or different encoding)."
         return self.chat(f"Summarize the following text:\n\n{content}")
 
+    def analyze_code(self):
+        with open(__file__, "r", encoding="utf-8") as f:
+            code = f.read()
+
+        try:
+            ast.parse(code)
+            return "No syntax errors found."
+        except SyntaxError as e:
+            return f"Syntax error found: {e}"
+
     def improve_self(self):
-        # Placeholder for self-improvement logic
-        print("AI: Checking for improvements...")
-        # Simulate checking for improvements
-        improvements_found = False
+        print("AI: Analyzing code for improvements...")
+        analysis_result = self.analyze_code()
+        print(f"AI: {analysis_result}")
 
         # Example: Check if there are any TODO comments
         with open(__file__, "r", encoding="utf-8") as f:
             lines = f.readlines()
-            for line in lines:
+            improvements_found = False
+            for line_number, line in enumerate(lines, start=1):
                 if "TODO" in line:
                     improvements_found = True
-                    print(f"AI: Found improvement opportunity in line: {line.strip()}")
+                    print(f"AI: Improvement opportunity found in line {line_number}: {line.strip()}")
                     break
 
         if not improvements_found:
-            print("AI: No improvements found.")
+            print("AI: No specific improvement opportunities found.")
 
 
 def main():
