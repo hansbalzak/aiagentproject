@@ -206,9 +206,6 @@ def main():
         else:
             response = ai.chat(user_input)
         print(f"AI: {response}")
-        proceed = input("Proceed? (y/n): ").strip().lower()
-        if proceed != 'y':
-            break
 
 if __name__ == '__main__':
     main()
