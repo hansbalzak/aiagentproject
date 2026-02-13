@@ -4,10 +4,13 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-
 import ast
 import io
 import traceback
+import json
+
+# Hypothetical code analysis service API endpoint
+CODE_ANALYSIS_API = "https://api.codeanalysis.com/analyze"
 
 class SimpleAI:
     def __init__(self, base_url="http://127.0.0.1:8080/v1", model="gpt-3.5-turbo"):
@@ -113,22 +116,32 @@ class SimpleAI:
         except SyntaxError as e:
             return f"Syntax error found: {e}"
 
+    def get_code_analysis_suggestions(self):
+        with open(__file__, "r", encoding="utf-8") as f:
+            code = f.read()
+
+        headers = {"Content-Type": "application/json"}
+        payload = {"code": code}
+
+        response = requests.post(CODE_ANALYSIS_API, headers=headers, json=payload, timeout=120)
+        if response.status_code != 200:
+            return f"No response (HTTP {response.status_code}): {response.text}"
+
+        data = response.json()
+        suggestions = data.get("suggestions", [])
+        return suggestions
+
     def improve_self(self):
         print("AI: Analyzing code for improvements...")
         analysis_result = self.analyze_code()
         print(f"AI: {analysis_result}")
 
-        # Example: Check if there are any TODO comments
-        with open(__file__, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-            improvements_found = False
-            for line_number, line in enumerate(lines, start=1):
-                if "TODO" in line:
-                    improvements_found = True
-                    print(f"AI: Improvement opportunity found in line {line_number}: {line.strip()}")
-                    break
-
-        if not improvements_found:
+        suggestions = self.get_code_analysis_suggestions()
+        if suggestions:
+            print("AI: Improvement suggestions found:")
+            for suggestion in suggestions:
+                print(f"AI: {suggestion}")
+        else:
             print("AI: No specific improvement opportunities found.")
 
 
