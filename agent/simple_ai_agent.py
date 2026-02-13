@@ -1,7 +1,7 @@
 import requests
 
 class SimpleAI:
-    def __init__(self, url):
+    def __init__(self, url="http://127.0.0.1:8080/v1"):
         self.url = url
 
     def send_command(self, command):
