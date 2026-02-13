@@ -521,16 +521,6 @@ class SimpleAI:
             uncertainty = "High"
         if "I'm not built to" in assistant_reply:
             uncertainty = "High"
-        if "I'm not capable of" in assistant_reply:
-            uncertainty = "High"
-        if "I'm not equipped to" in assistant_reply:
-            uncertainty = "High"
-        if "I'm not programmed to" in assistant_reply:
-            uncertainty = "High"
-        if "I'm not designed to" in assistant_reply:
-            uncertainty = "High"
-        if "I'm not built to" in assistant_reply:
-            uncertainty = "High"
 
         # Log the reflection
         reflection_entry = f"Timestamp: {datetime.now().isoformat()}\n"
@@ -539,7 +529,8 @@ class SimpleAI:
         reflection_entry += f"Uncertainty: {uncertainty}\n"
         reflection_entry += f"Memory Suggestions: {memory_suggestions}\n\n"
 
-        self.self_reflection_log_path.write_text(reflection_entry, encoding="utf-8", mode="a")
+        with self.self_reflection_log_path.open("a", encoding="utf-8") as f:
+            f.write(reflection_entry)
 
 def main():
     ai = SimpleAI()
