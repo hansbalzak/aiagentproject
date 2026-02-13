@@ -135,65 +135,6 @@ class SimpleAI:
             return f"Syntax error found: {e}"
 
 
-    def improve_self(self):
-        print("AI: Analyzing code for improvements...")
-        analysis_result = self.analyze_code()
-        print(f"AI: {analysis_result}")
-
-        # Placeholder for local improvement checks
-        improvements_found = False
-
-        # Example: Check for unused imports
-        with open(__file__, "r", encoding="utf-8") as f:
-            code = f.read()
-            tree = ast.parse(code)
-            used_imports = set()
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        used_imports.add(alias.name.split('.')[0])
-                elif isinstance(node, ast.ImportFrom):
-                    used_imports.add(node.module.split('.')[0])
-
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Name):
-                    used_imports.discard(node.id)
-
-            unused_imports = []
-            for imp in ast.walk(tree):
-                if isinstance(imp, ast.Import):
-                    for alias in imp.names:
-                        if alias.name.split('.')[0] not in used_imports:
-                            unused_imports.append(imp)
-                elif isinstance(imp, ast.ImportFrom):
-                    if imp.module and imp.module not in used_imports:
-                        unused_imports.append(imp)
-            if unused_imports:
-                improvements_found = True
-                print("AI: Unused imports found:")
-                for imp in unused_imports:
-                    print(f"AI: {ast.unparse(imp)}")
-
-                # Remove unused imports from the code
-                with open(__file__, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
-
-                with open(__file__, "w", encoding="utf-8") as f:
-                    for line in lines:
-                        if not any(ast.unparse(imp) in line for imp in unused_imports):
-                            f.write(line)
-
-                print("AI: Unused imports removed from the code.")
-
-        if not improvements_found:
-            print("AI: No specific improvement opportunities found.")
-        else:
-            # Install necessary packages
-            print("AI: Installing necessary packages...")
-            for imp in unused_imports:
-                module_name = ast.unparse(imp).split()[1].strip("'\"")
-                subprocess.run([os.path.join(os.path.dirname(__file__), "venv", "bin", "pip"), "install", module_name], check=True)
-            print("AI: Packages installed.")
 
 
 def main():
@@ -219,9 +160,6 @@ def main():
             print(f"AI: Summary of {file_path}:\n{summary}")
             continue
 
-        if cmd in ("/self_improve", "self_improve"):
-            ai.improve_self()
-            continue
 
         response = ai.chat(user_input)
         print(f"AI: {response}")
