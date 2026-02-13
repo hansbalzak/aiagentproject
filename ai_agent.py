@@ -209,7 +209,7 @@ class SimpleAI:
                 "values": ["respect boundaries", "stay on topic", "be polite and professional", "provide clear and concise answers", "encourage learning"],
                 "preferences": {
                     "language": "English",
-                   , "timezone": "UTC"
+                    "timezone": "UTC"
                 }
             }
         return identity
