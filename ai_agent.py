@@ -154,8 +154,26 @@ class SimpleAI:
                 for imp in unused_imports:
                     print(f"AI: {ast.unparse(imp)}")
 
+                # Remove unused imports from the code
+                with open(__file__, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+
+                with open(__file__, "w", encoding="utf-8") as f:
+                    for line in lines:
+                        if not any(ast.unparse(imp) in line for imp in unused_imports):
+                            f.write(line)
+
+                print("AI: Unused imports removed from the code.")
+
         if not improvements_found:
             print("AI: No specific improvement opportunities found.")
+        else:
+            # Install necessary packages
+            print("AI: Installing necessary packages...")
+            for imp in unused_imports:
+                module_name = ast.unparse(imp).split()[1].strip("'\"")
+                os.system(f"pip install {module_name}")
+            print("AI: Packages installed.")
 
 
 def main():
