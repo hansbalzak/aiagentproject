@@ -208,6 +208,11 @@ class SimpleAI:
                                 sys.stdout.flush()
                     except Exception as e:
                         print(f"Error processing stream: {e}")
+            # Update conversation after stream completes
+            self.conversation.append({"role": "user", "content": user_text})
+            self.conversation.append({"role": "assistant", "content": assistant})
+            self.trim_conversation()
+            self.save_conversation()
             return assistant
         else:
             response = self.session.post(url, headers=headers, json=payload, timeout=120)
