@@ -5,6 +5,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from datetime import datetime
 from agent_work.sandbox import read_file, write_file, list_dir, run_shell
+import re
+from collections import defaultdict
 
 def ensure_venv():
     # Ensure virtual environment is activated
@@ -26,6 +28,7 @@ class SimpleAI:
         self.plan = []
         self.current_step = 0
         self.loop_detected = False
+        self.index = self.load_index()
 
     def ensure_personality_file(self):
         if not os.path.exists("personality.txt"):
@@ -124,6 +127,29 @@ class SimpleAI:
         profile = self.load_profile()
         return json.dumps(profile, indent=4)
 
+    def load_index(self):
+        index = defaultdict(list)
+        for root, _, files in os.walk("."):
+            for file in files:
+                file_path = os.path.join(root, file)
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                    for i, line in enumerate(content.splitlines()):
+                        index[line].append((file_path, i + 1))
+        return index
+
+    def search_repo(self, keyword):
+        results = []
+        for line, locations in self.index.items():
+            if re.search(r"\b" + re.escape(keyword) + r"\b", line, re.IGNORECASE):
+                for file_path, line_number in locations:
+                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        lines = f.readlines()
+                        context = lines[max(0, line_number - 3):min(len(lines), line_number + 3)]
+                        context = "".join(context).strip()
+                    results.append((file_path, line_number, context))
+        return results
+
     def handle_command(self, command):
         if command.startswith("/remember "):
             fact = command[len("/remember "):]
@@ -159,6 +185,15 @@ class SimpleAI:
             return self.execute_step()
         elif command == "/check_result":
             return self.check_result("")
+        elif command.startswith("/askrepo "):
+            keyword = command[len("/askrepo "):]
+            results = self.search_repo(keyword)
+            if not results:
+                return "No results found."
+            response = "Relevant snippets:\n"
+            for file_path, line_number, context in results:
+                response += f"File: {file_path}, Line: {line_number}\nContext: {context}\n\n"
+            return response
         else:
             return "Unknown command."
 
