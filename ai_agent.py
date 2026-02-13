@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-import os
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
-import ast
 import io
 import traceback
 import json
