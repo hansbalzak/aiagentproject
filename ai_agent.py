@@ -9,8 +9,6 @@ import io
 import traceback
 import json
 
-# Hypothetical code analysis service API endpoint
-CODE_ANALYSIS_API = "https://api.codeanalysis.com/analyze"
 
 class SimpleAI:
     def __init__(self, base_url="http://127.0.0.1:8080/v1", model="gpt-3.5-turbo"):
@@ -116,32 +114,39 @@ class SimpleAI:
         except SyntaxError as e:
             return f"Syntax error found: {e}"
 
-    def get_code_analysis_suggestions(self):
-        with open(__file__, "r", encoding="utf-8") as f:
-            code = f.read()
-
-        headers = {"Content-Type": "application/json"}
-        payload = {"code": code}
-
-        response = requests.post(CODE_ANALYSIS_API, headers=headers, json=payload, timeout=120)
-        if response.status_code != 200:
-            return f"No response (HTTP {response.status_code}): {response.text}"
-
-        data = response.json()
-        suggestions = data.get("suggestions", [])
-        return suggestions
 
     def improve_self(self):
         print("AI: Analyzing code for improvements...")
         analysis_result = self.analyze_code()
         print(f"AI: {analysis_result}")
 
-        suggestions = self.get_code_analysis_suggestions()
-        if suggestions:
-            print("AI: Improvement suggestions found:")
-            for suggestion in suggestions:
-                print(f"AI: {suggestion}")
-        else:
+        # Placeholder for local improvement checks
+        improvements_found = False
+
+        # Example: Check for unused imports
+        with open(__file__, "r", encoding="utf-8") as f:
+            code = f.read()
+            tree = ast.parse(code)
+            used_imports = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        used_imports.add(alias.name.split('.')[0])
+                elif isinstance(node, ast.ImportFrom):
+                    used_imports.add(node.module.split('.')[0])
+
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Name):
+                    used_imports.discard(node.id)
+
+            unused_imports = [imp for imp in ast.walk(tree) if isinstance(imp, (ast.Import, ast.ImportFrom)) and imp.module not in used_imports]
+            if unused_imports:
+                improvements_found = True
+                print("AI: Unused imports found:")
+                for imp in unused_imports:
+                    print(f"AI: {ast.unparse(imp)}")
+
+        if not improvements_found:
             print("AI: No specific improvement opportunities found.")
 
 
