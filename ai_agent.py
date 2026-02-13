@@ -19,6 +19,8 @@ exec(open(activate_script).read(), dict(__file__=activate_script))
 
 import requests
 import ast
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 
 
 class SimpleAI:
