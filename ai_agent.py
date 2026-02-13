@@ -12,8 +12,10 @@ def ensure_venv():
             subprocess.run([sys.executable, "-m", "venv", venv_path], check=True)
             print("Virtual environment created.")
         vpy = os.path.join(venv_path, "bin", "python3")
-        subprocess.run([vpy, "-m", "pip", "install", "--upgrade", "pip"], check=True)
-        subprocess.run([vpy, "-m", "pip", "install", "requests"], check=True)
+        check = subprocess.run([vpy, "-c", "import requests"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if check.returncode != 0:
+            subprocess.run([vpy, "-m", "pip", "install", "--upgrade", "pip"], check=True)
+            subprocess.run([vpy, "-m", "pip", "install", "requests"], check=True)
         os.execv(vpy, [vpy, __file__] + sys.argv[1:])
 
 ensure_venv()
