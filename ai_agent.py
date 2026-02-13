@@ -3,6 +3,7 @@
 import os
 import sys
 import subprocess
+import json
 
 def ensure_venv():
     venv_path = os.path.join(os.path.dirname(__file__), "venv")
