@@ -42,6 +42,9 @@ class SimpleAI:
 
 if __name__ == "__main__":
     ai = SimpleAI("http://127.0.0.1:8080/v1")
-    ai.hello()
-    ai.how_are_you()
-    ai.goodbye()
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() in ["exit", "quit"]:
+            break
+        response = ai.chat(user_input)
+        print(f"AI: {response}")
