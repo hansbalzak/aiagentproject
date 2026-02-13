@@ -145,7 +145,7 @@ class SimpleAI:
                 f.write(json.dumps(fact, ensure_ascii=False) + "\n")
 
     # --------- LLM chat ---------
-    def chat(self, user_text: str) -> str:
+    def chat(self, user_text: str, stream: bool = False) -> str:
         url = f"{self.base_url}/chat/completions"
         headers = {"Content-Type": "application/json", "Authorization": "Bearer none"}
 
@@ -160,36 +160,54 @@ class SimpleAI:
             "messages": messages,
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
-            "stream": False,
+            "stream": stream,
         }
 
-        r = self.session.post(url, headers=headers, json=payload, timeout=120)
-        if r.status_code != 200:
-            try:
-                return f"HTTP {r.status_code}: {r.json()}"
-            except Exception:
-                return f"HTTP {r.status_code}: {r.text}"
+        if stream:
+            response = self.session.post(url, headers=headers, json=payload, stream=True, timeout=120)
+            assistant = ""
+            for line in response.iter_lines():
+                if line:
+                    try:
+                        data = json.loads(line.decode("utf-8"))
+                        if "choices" in data and len(data["choices"]) > 0:
+                            delta = data["choices"][0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                assistant += content
+                                sys.stdout.write(content)
+                                sys.stdout.flush()
+                    except Exception as e:
+                        print(f"Error processing stream: {e}")
+            return assistant
+        else:
+            response = self.session.post(url, headers=headers, json=payload, timeout=120)
+            if response.status_code != 200:
+                try:
+                    return f"HTTP {response.status_code}: {response.json()}"
+                except Exception:
+                    return f"HTTP {response.status_code}: {response.text}"
 
-        data = r.json()
-        assistant = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        if not isinstance(assistant, str):
-            assistant = str(assistant)
+            data = response.json()
+            assistant = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            if not isinstance(assistant, str):
+                assistant = str(assistant)
 
-        # Update memory
-        self.conversation.append({"role": "user", "content": user_text})
-        self.conversation.append({"role": "assistant", "content": assistant})
-        self.trim_conversation()
-        self.save_conversation()
+            # Update memory
+            self.conversation.append({"role": "user", "content": user_text})
+            self.conversation.append({"role": "assistant", "content": assistant})
+            self.trim_conversation()
+            self.save_conversation()
 
-        # Optional: keep "name" in profile if user says "my name is X"
-        m = re.search(r"\bmy name is\s+([A-Za-z0-9 _-]{1,60})\b", user_text, re.IGNORECASE)
-        if m:
-            name = m.group(1).strip()
-            prof = self.load_profile()
-            prof["name"] = name
-            self.save_profile(prof)
+            # Optional: keep "name" in profile if user says "my name is X"
+            m = re.search(r"\bmy name is\s+([A-Za-z0-9 _-]{1,60})\b", user_text, re.IGNORECASE)
+            if m:
+                name = m.group(1).strip()
+                prof = self.load_profile()
+                prof["name"] = name
+                self.save_profile(prof)
 
-        return assistant
+            return assistant
 
     # --------- Conversation Trimming ---------
     def trim_conversation(self) -> None:
@@ -428,6 +446,7 @@ def main() -> None:
     parser.add_argument("--model", default=os.getenv("AI_MODEL", "gpt-3.5-turbo"), help="AI model to use")
     parser.add_argument("--temperature", type=float, default=float(os.getenv("AI_TEMPERATURE", "0.2")), help="Temperature for the AI model")
     parser.add_argument("--max_tokens", type=int, default=int(os.getenv("AI_MAX_TOKENS", "400")), help="Max tokens for the AI model")
+    parser.add_argument("--stream", action="store_true", help="Enable streaming responses")
 
     args = parser.parse_args()
 
@@ -446,7 +465,7 @@ def main() -> None:
                 break
             print(f"AI: {response}")
         else:
-            response = ai.chat(user_input)
+            response = ai.chat(user_input, stream=args.stream)
             print(f"AI: {response}")
 
 
