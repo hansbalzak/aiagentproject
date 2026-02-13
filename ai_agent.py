@@ -106,10 +106,6 @@ class SimpleAI:
         
         self.conversation.append({"role": "assistant", "content": assistant_message})
 
-        if "look up" in assistant_message.lower() or "search" in assistant_message.lower():
-            query = assistant_message.split("for", 1)[1].strip()
-            self.search_internet(query)
-            return f"Searching the internet for: {query}"
         elif "summarize" in assistant_message.lower():
             parts = assistant_message.split("file", 1)
             if len(parts) < 2:
@@ -132,15 +128,6 @@ class SimpleAI:
         print("  - clear: Clear the conversation.")
         print("  - summarize <file_path>: Summarize the content of the specified file.")
 
-    def search_internet(self, query: str):
-        """
-        Simple internet lookup by opening a browser search.
-        This does NOT scrape content, it just launches the user's browser.
-        """
-        base_url = "https://www.google.com/search?q="
-        search_url = base_url + requests.utils.quote(query)
-        print(f"Opening browser for: {search_url}")
-        webbrowser.open(search_url)
 
     def summarize_file(self, file_path: str) -> str:
         if not os.path.exists(file_path):
