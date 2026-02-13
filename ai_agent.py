@@ -70,6 +70,7 @@ class SimpleAI:
         self.facts_path = self.repo_root / "facts.jsonl"
         self.conversation_path = self.repo_root / "conversation.json"
         self.identity_path = self.repo_root / "identity.json"
+        self.self_reflection_log_path = self.repo_root / "self_reflection.log"
 
         self.ensure_personality_file()
         self.ensure_profile_and_facts()
@@ -490,6 +491,56 @@ class SimpleAI:
         self.save_facts(updated_facts)
         return "Facts decayed and low-confidence ones removed."
 
+    def self_reflect(self, assistant_reply: str) -> None:
+        quality = "Good"
+        uncertainty = "Low"
+        memory_suggestions = []
+
+        # Simple reflection logic
+        if len(assistant_reply) < 10:
+            quality = "Poor"
+        if "I'm not sure" in assistant_reply:
+            uncertainty = "High"
+        if "I don't know" in assistant_reply:
+            uncertainty = "High"
+        if "I can't help with that" in assistant_reply:
+            uncertainty = "High"
+        if "I don't understand" in assistant_reply:
+            uncertainty = "High"
+        if "I'm sorry" in assistant_reply:
+            uncertainty = "High"
+        if "I'm unable to" in assistant_reply:
+            uncertainty = "High"
+        if "I'm not capable of" in assistant_reply:
+            uncertainty = "High"
+        if "I'm not equipped to" in assistant_reply:
+            uncertainty = "High"
+        if "I'm not programmed to" in assistant_reply:
+            uncertainty = "High"
+        if "I'm not designed to" in assistant_reply:
+            uncertainty = "High"
+        if "I'm not built to" in assistant_reply:
+            uncertainty = "High"
+        if "I'm not capable of" in assistant_reply:
+            uncertainty = "High"
+        if "I'm not equipped to" in assistant_reply:
+            uncertainty = "High"
+        if "I'm not programmed to" in assistant_reply:
+            uncertainty = "High"
+        if "I'm not designed to" in assistant_reply:
+            uncertainty = "High"
+        if "I'm not built to" in assistant_reply:
+            uncertainty = "High"
+
+        # Log the reflection
+        reflection_entry = f"Timestamp: {datetime.now().isoformat()}\n"
+        reflection_entry += f"Assistant Reply: {assistant_reply}\n"
+        reflection_entry += f"Quality: {quality}\n"
+        reflection_entry += f"Uncertainty: {uncertainty}\n"
+        reflection_entry += f"Memory Suggestions: {memory_suggestions}\n\n"
+
+        self.self_reflection_log_path.write_text(reflection_entry, encoding="utf-8", mode="a")
+
 def main():
     ai = SimpleAI()
 
@@ -499,6 +550,7 @@ def main():
             break
         response = ai.chat(user_input)
         print(f"Assistant: {response}")
+        ai.self_reflect(response)
 
 if __name__ == "__main__":
     main()
