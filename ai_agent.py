@@ -51,11 +51,11 @@ def _ensure_file(path: Path, content: str = "") -> None:
 
 
 class SimpleAI:
-    def __init__(self, base_url: str, model: str, temperature: float, max_tokens: int):
-        self.base_url = base_url.rstrip("/")
-        self.model = model
-        self.temperature = temperature
-        self.max_tokens = max_tokens
+    def __init__(self):
+        self.base_url = "http://127.0.0.1:8080/v1"
+        self.model = "gpt-3.5-turbo"
+        self.temperature = 0.7
+        self.max_tokens = 100
 
         self.session = requests.Session()
         retries = Retry(total=5, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
@@ -491,15 +491,7 @@ class SimpleAI:
         return "Facts decayed and low-confidence ones removed."
 
 def main():
-    parser = argparse.ArgumentParser(description="Simple AI Agent")
-    parser.add_argument("--base_url", type=str, required=False, default="http://127.0.0.1:8080/v1", help="Base URL for the LLM API")
-    parser.add_argument("--model", type=str, required=False, default="gpt-3.5-turbo", help="Model name")
-    parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for the model")
-    parser.add_argument("--max_tokens", type=int, default=100, help="Max tokens for the model response")
-
-    args = parser.parse_args()
-
-    ai = SimpleAI(args.base_url, args.model, args.temperature, args.max_tokens)
+    ai = SimpleAI()
 
     while True:
         user_input = input("User: ")
