@@ -107,10 +107,6 @@ class SimpleAI:
         self.conversation_path = self.repo_root / "conversation.json"
         self.identity_path = self.repo_root / "identity.json"
         self.self_reflection_log_path = self.repo_root / "self_reflection.log"
-        self.lockfile_path = self.repo_root / "agent.lock"
-
-        # Create lockfile
-        self.lockfile_path.touch()
 
         self.ensure_personality_file()
         self.ensure_profile_and_facts()
@@ -736,7 +732,7 @@ class SimpleAI:
             return f"FAIL: {e}"
 
     def handle_exit(self) -> None:
-        self.lockfile_path.unlink()
+        pass
 
 def main():
     ai = SimpleAI()
