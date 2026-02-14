@@ -1343,6 +1343,22 @@ class SimpleAI:
         _atomic_write_json(self.identity_freeze_path, self.identity_freeze)
         self.log_event("identity_freeze_saved", self.identity_freeze)
 
+    def log_trace(self, user_input: str, assistant_response: str) -> None:
+        trace_id = str(uuid.uuid4())
+        trace_entry = {
+            "trace_id": trace_id,
+            "timestamp": datetime.now().isoformat(),
+            "model": self.model,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "user_input": user_input,
+            "assistant_response": assistant_response
+        }
+        trace_file = traces_dir / f"{datetime.now().date()}.jsonl"
+        with trace_file.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(trace_entry, ensure_ascii=False) + "\n")
+        self.log_event("trace_logged", {"trace_id": trace_id})
+
 def main():
     parser = argparse.ArgumentParser(description="Run the AI agent.")
     parser.add_argument("--base-url", default=os.getenv("BASE_URL", "http://127.0.0.1:8080/v1"), help="Base URL for the LLM API")
