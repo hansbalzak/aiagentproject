@@ -1,4 +1,4 @@
-# Local Cognitive Agent
+# Cognitive Exoskeleton
 
 ⚠️ LICENSED UNDER A STRICT NON-COMMERCIAL RESEARCH LICENSE  
 See LICENSE: https://raw.githubusercontent.com/hansbalzak/aiagentproject/main/license.md
