@@ -1,13 +1,19 @@
 # Local Cognitive Agent
 
-⚠️ NON-COMMERCIAL PROJECT
+⚠️ LICENSED UNDER A STRICT NON-COMMERCIAL RESEARCH LICENSE  
+See LICENSE: https://raw.githubusercontent.com/hansbalzak/aiagentproject/main/license.md
 
 Personal, educational, research and internal evaluation use is allowed.
 
-Commercial use (products, SaaS, consulting, monetization) is forbidden.
+Commercial use is strictly prohibited, including but not limited to products,
+SaaS, consulting, monetization, or revenue-generating systems.
 
 Attribution is mandatory.
-Organizations must notify: winkels@solardrifts.com
+
+Any organization or legal entity using this software in any capacity must notify:
+winkels@solardrifts.com
+
+Unauthorized commercial use constitutes a material breach of license terms.
 
 This project is an experimental local cognitive architecture focused on:
 - self-correction
