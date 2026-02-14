@@ -107,11 +107,13 @@ class SimpleAI:
         self.conversation_path = self.repo_root / "conversation.json"
         self.identity_path = self.repo_root / "identity.json"
         self.self_reflection_log_path = self.repo_root / "self_reflection.log"
+        self.claims_path = self.repo_root / "claims.jsonl"
 
         self.ensure_personality_file()
         self.ensure_profile_and_facts()
         self.conversation: List[Dict[str, str]] = self.load_conversation()
         self.identity = self.load_identity()
+        self.claims = self.load_claims()
 
         # Repo search index (lazy)
         self._index_built = False
@@ -223,6 +225,34 @@ class SimpleAI:
 
     def validate_identity(self, identity: Dict[str, Any]) -> bool:
         return isinstance(identity, dict) and "style" in identity and "values" in identity and "preferences" in identity and "name" in identity
+
+    def load_claims(self) -> List[Dict[str, Any]]:
+        if not self.claims_path.exists():
+            return []
+        claims: List[Dict[str, Any]] = []
+        for line in self.claims_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                if isinstance(obj, dict):
+                    claims.append(obj)
+            except Exception:
+                continue
+        return claims
+
+    def append_claims(self, claims: List[Dict[str, Any]]) -> None:
+        with self.claims_path.open("a", encoding="utf-8") as f:
+            for claim in claims:
+                f.write(json.dumps(claim, ensure_ascii=False) + "\n")
+
+    def rewrite_claims(self, claims: List[Dict[str, Any]]) -> None:
+        temp_path = self.claims_path.with_suffix('.tmp')
+        with temp_path.open('w', encoding='utf-8') as f:
+            for claim in claims:
+                f.write(json.dumps(claim, ensure_ascii=False) + "\n")
+        temp_path.rename(self.claims_path)
 
     # --------- LLM chat ---------
     def _post_chat(self, messages: List[Dict[str, str]], temperature: float, max_tokens: int, stream: bool = False) -> Tuple[bool, Any]:
@@ -347,6 +377,13 @@ class SimpleAI:
             # Reflect sampling
             if random.random() < 0.2:
                 self.self_reflect(assistant)
+
+            # Extract and store claims
+            new_claims = self.extract_claims(assistant)
+            if new_claims:
+                self.append_claims(new_claims)
+                self.rewrite_claims(self.claims[-500:])
+                print(f"(logged {len(new_claims)} claims; /claims to view)")
 
             return assistant
 
@@ -501,6 +538,11 @@ class SimpleAI:
                 "  /summarize            Summarize the conversation and keep the last 10 messages",
                 "  /decay_facts          Decay confidence of facts and remove low-confidence ones",
                 "  /health               Check agent health",
+                "  /claims [n]           List last n claims with id/status/confidence/topic",
+                "  /claim <id>           Show a single claim with history",
+                "  /correct <id> <note>  Mark claim corrected; store note; reduce confidence strongly",
+                "  /retract <id> <note>  Mark claim retracted; confidence to 0",
+                "  /verify <id>          Ask the LLM to self-check the claim using only repo snippets (from /askrepo) + known facts; then update confidence/status accordingly (soft-fail if not enough evidence)",
             ]
         )
 
@@ -587,6 +629,53 @@ class SimpleAI:
 
         if cmd == "/health":
             return self.health_check()
+
+        if cmd.startswith("/claims "):
+            n = 10
+            if cmd[len("/claims ") :].strip():
+                try:
+                    n = int(cmd[len("/claims ") :].strip())
+                except ValueError:
+                    return "Usage: /claims [n]"
+            return self.list_claims(n)
+
+        if cmd.startswith("/claim "):
+            raw = cmd[len("/claim ") :].strip()
+            try:
+                return self.show_claim(int(raw))
+            except Exception:
+                return "Usage: /claim <id>"
+
+        if cmd.startswith("/correct "):
+            rest = cmd[len("/correct ") :].strip()
+            parts = rest.split(" ", 1)
+            if len(parts) != 2:
+                return "Usage: /correct <id> <note>"
+            try:
+                claim_id = int(parts[0])
+                note = parts[1]
+                return self.correct_claim(claim_id, note)
+            except Exception:
+                return "Usage: /correct <id> <note>"
+
+        if cmd.startswith("/retract "):
+            rest = cmd[len("/retract ") :].strip()
+            parts = rest.split(" ", 1)
+            if len(parts) != 2:
+                return "Usage: /retract <id> <note>"
+            try:
+                claim_id = int(parts[0])
+                note = parts[1]
+                return self.retract_claim(claim_id, note)
+            except Exception:
+                return "Usage: /retract <id> <note>"
+
+        if cmd.startswith("/verify "):
+            raw = cmd[len("/verify ") :].strip()
+            try:
+                return self.verify_claim(int(raw))
+            except Exception:
+                return "Usage: /verify <id>"
 
         return "Unknown command. Type /help."
 
@@ -756,6 +845,164 @@ class SimpleAI:
         if self.circuit_breaker_active and time.time() > self.circuit_breaker_end_time:
             self.circuit_breaker_active = False
             self.consecutive_failures = 0
+
+    def extract_claims(self, assistant_reply: str) -> List[Dict[str, Any]]:
+        self._update_circuit_breaker_state()
+        if self.circuit_breaker_active:
+            return []
+
+        messages: List[Dict[str, str]] = [
+            {"role": "system", "content": "Extract 1-3 atomic factual claims from the following assistant reply. Return ONLY valid JSON list of claims with the following structure: [{claim: '...', topic: '...'}]. Keep the claims short and to the point. Do not include any other text or explanations."},
+            {"role": "user", "content": assistant_reply}
+        ]
+
+        ok, response = self._post_chat(messages, 0.0, 100, stream=False)
+        if not ok:
+            logger.error(f"Failed to extract claims: {response}")
+            return []
+
+        data = response
+        assistant = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        if not isinstance(assistant, str):
+            assistant = str(assistant)
+
+        try:
+            claims = json.loads(assistant)
+            if isinstance(claims, list) and all(isinstance(c, dict) and "claim" in c and "topic" in c for c in claims):
+                return claims
+            else:
+                logger.warning("Invalid claims JSON received.")
+                return []
+        except json.JSONDecodeError:
+            logger.error("Failed to decode JSON from claims extraction response.")
+            return []
+
+    def list_claims(self, n: int = 10) -> str:
+        claims = self.claims[-n:]
+        if not claims:
+            return "No claims found."
+        out = ["Claims:"]
+        for claim in claims:
+            out.append(f"ID: {claim['id']}, Status: {claim['status']}, Confidence: {claim['confidence']:.2f}, Topic: {claim['topic']}")
+        return "\n".join(out)
+
+    def show_claim(self, claim_id: int) -> str:
+        for claim in self.claims:
+            if claim["id"] == claim_id:
+                out = [
+                    f"ID: {claim['id']}",
+                    f"Claim: {claim['claim']}",
+                    f"Topic: {claim['topic']}",
+                    f"Confidence: {claim['confidence']:.2f}",
+                    f"Status: {claim['status']}",
+                    f"Created At: {claim['created_at']}",
+                    f"Last Seen At: {claim['last_seen_at']}",
+                    f"Source: {claim['source']}",
+                    "Corrections:"
+                ]
+                for correction in claim.get("corrections", []):
+                    out.append(f"  At: {correction['at']}, Note: {correction['note']}, New Status: {correction['new_status']}")
+                return "\n".join(out)
+        return "Claim not found."
+
+    def correct_claim(self, claim_id: int, note: str) -> str:
+        for claim in self.claims:
+            if claim["id"] == claim_id:
+                if claim["status"] == "active":
+                    claim["status"] = "corrected"
+                    claim["confidence"] = max(0.0, claim["confidence"] - 0.5)
+                    claim["corrections"].append({
+                        "at": datetime.now().isoformat(),
+                        "note": note,
+                        "new_status": "corrected"
+                    })
+                    self.rewrite_claims(self.claims)
+                    return f"Claim {claim_id} corrected. Confidence reduced to {claim['confidence']:.2f}."
+                else:
+                    return f"Claim {claim_id} is already {claim['status']}."
+        return "Claim not found."
+
+    def retract_claim(self, claim_id: int, note: str) -> str:
+        for claim in self.claims:
+            if claim["id"] == claim_id:
+                if claim["status"] == "active":
+                    claim["status"] = "retracted"
+                    claim["confidence"] = 0.0
+                    claim["corrections"].append({
+                        "at": datetime.now().isoformat(),
+                        "note": note,
+                        "new_status": "retracted"
+                    })
+                    self.rewrite_claims(self.claims)
+                    return f"Claim {claim_id} retracted. Confidence set to 0.0."
+                else:
+                    return f"Claim {claim_id} is already {claim['status']}."
+        return "Claim not found."
+
+    def verify_claim(self, claim_id: int) -> str:
+        for claim in self.claims:
+            if claim["id"] == claim_id:
+                if claim["status"] == "corrected" or claim["status"] == "retracted":
+                    return f"Claim {claim_id} is already {claim['status']}. No need to verify."
+
+                messages: List[Dict[str, str]] = [
+                    {"role": "system", "content": "Verify the following claim using only the provided repo snippets and known facts. Return ONLY valid JSON with keys: verified (bool), note (str). Do not include any other text or explanations."},
+                    {"role": "user", "content": claim["claim"]},
+                    {"role": "user", "content": "Repo snippets:\n" + "\n".join(self.search_repo(claim["topic"])[:10])}
+                ]
+
+                ok, response = self._post_chat(messages, 0.0, 200, stream=False)
+                if not ok:
+                    logger.error(f"Failed to verify claim: {response}")
+                    return f"Failed to verify claim {claim_id}."
+
+                data = response
+                assistant = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                if not isinstance(assistant, str):
+                    assistant = str(assistant)
+
+                try:
+                    verification = json.loads(assistant)
+                    if isinstance(verification, dict) and "verified" in verification and "note" in verification:
+                        verified = verification["verified"]
+                        note = verification["note"]
+                        if verified:
+                            claim["status"] = "active"
+                            claim["confidence"] = min(1.0, claim["confidence"] + 0.2)
+                        else:
+                            claim["status"] = "retracted"
+                            claim["confidence"] = 0.0
+                        claim["corrections"].append({
+                            "at": datetime.now().isoformat(),
+                            "note": note,
+                            "new_status": claim["status"]
+                        })
+                        self.rewrite_claims(self.claims)
+                        return f"Claim {claim_id} verified. Status: {claim['status']}, Confidence: {claim['confidence']:.2f}."
+                    else:
+                        logger.warning("Invalid verification JSON received.")
+                        return f"Invalid verification response for claim {claim_id}."
+                except json.JSONDecodeError:
+                    logger.error("Failed to decode JSON from verification response.")
+                    return f"Failed to decode JSON for claim {claim_id}."
+        return "Claim not found."
+
+    def inject_known_corrections(self, user_text: str) -> str:
+        relevant_claims = []
+        for claim in self.claims:
+            if claim["status"] in ["corrected", "retracted"]:
+                for keyword in claim["claim"].split():
+                    if keyword.lower() in user_text.lower():
+                        relevant_claims.append(claim)
+                        break
+        if not relevant_claims:
+            return ""
+
+        corrections = "\n".join([
+            f"Corrected/Retracted: {claim['claim']} (Topic: {claim['topic']}, Status: {claim['status']})"
+            for claim in relevant_claims[:10]
+        ])
+        return f"Known Corrections:\n{corrections}\n"
 
 def main():
     parser = argparse.ArgumentParser(description="Run the AI agent.")
