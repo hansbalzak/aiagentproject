@@ -871,7 +871,7 @@ class SimpleAI:
         except requests.RequestException as e:
             return f"FAIL: {e}"
 
-    def handle_exit(self) -> None:
+    def handle_exit(self, *args) -> None:
         pass
 
     def _update_circuit_breaker_state(self) -> None:
