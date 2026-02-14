@@ -26,5 +26,4 @@ This is not a startup project.
 
 ---
 
-This project was created through human-directed AI iteration.
-The value lies in the process — time, hardware, and human intent — not just the code.
+This project emerged organically from building tools to externalize human reflection and learning. It is not an AI agent. It is a cognitive exoskeleton.
