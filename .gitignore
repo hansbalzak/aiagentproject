@@ -5,3 +5,20 @@ profile.json
 facts.jsonl
 logs/
 agent.lock
+# runtime state (do not commit)
+conversation.json
+facts.jsonl
+identity.json
+profile.json
+claims.jsonl
+state.json
+
+# logs & traces
+logs/
+traces/
+self_reflection.log
+reports/
+eval/results.jsonl
+
+# misc
+*.corrupt-*
