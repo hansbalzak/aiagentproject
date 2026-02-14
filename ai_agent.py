@@ -111,8 +111,13 @@ class SimpleAI:
 
         # Check for lockfile
         if self.lockfile_path.exists():
-            print("Agent is already running. Exiting.")
-            sys.exit(1)
+            # Check if the lockfile is older than 5 minutes
+            if datetime.now() - datetime.fromtimestamp(self.lockfile_path.stat().st_mtime) > timedelta(minutes=5):
+                logger.warning("Old lockfile found. Removing it.")
+                self.lockfile_path.unlink()
+            else:
+                print("Agent is already running. Exiting.")
+                sys.exit(1)
 
         # Create lockfile
         self.lockfile_path.touch()
