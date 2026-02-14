@@ -306,15 +306,13 @@ class SimpleAI:
         config = _safe_load_json(self.config_path, default={
             "allow_write": False,
             "allow_run": False,
-            "allow_network_readonly": True,
-            "privacy_mode": True
+            "allow_network_readonly": True
         })
         if not isinstance(config, dict):
             config = {
                 "allow_write": False,
                 "allow_run": False,
-                "allow_network_readonly": True,
-                "privacy_mode": True
+                "allow_network_readonly": True
             }
         return config
 
@@ -415,7 +413,7 @@ class SimpleAI:
         messages.extend(self.conversation)
         messages.append({"role": "user", "content": user_text})
 
-        trace_id = str(uuid.uuid4())
+        self.trace_id = str(uuid.uuid4())
 
         if stream:
             response = self._post_chat_stream(messages, self.temperature, self.max_tokens)
@@ -438,7 +436,7 @@ class SimpleAI:
             self.conversation.append({"role": "assistant", "content": assistant})
             self.trim_conversation()
             self.save_conversation()
-            self.log_event("assistant_response_generated", {"length": len(assistant), "hash": _hash_content(assistant)}, trace_id=trace_id)
+            self.log_event("assistant_response_generated", {"length": len(assistant), "hash": _hash_content(assistant)}, trace_id=self.trace_id)
             return assistant
         else:
             ok, response = self._post_chat(messages, self.temperature, self.max_tokens)
@@ -485,7 +483,7 @@ class SimpleAI:
                 self.rewrite_claims(self.claims[-500:])
                 print(f"(logged {len(new_claims)} claims; /claims to view)")
 
-            self.log_event("assistant_response_generated", {"length": len(assistant), "hash": _hash_content(assistant)}, trace_id=trace_id)
+            self.log_event("assistant_response_generated", {"length": len(assistant), "hash": _hash_content(assistant)}, trace_id=self.trace_id)
             return assistant
 
     def _contains_uncertainty_markers(self, text: str) -> bool:
@@ -1141,6 +1139,9 @@ class SimpleAI:
                     snippets.extend(self.search_repo(keyword)[:10])
 
                 snippets = list(set(snippets))[:10]
+
+                if not snippets:
+                    return "Insufficient local evidence."
 
                 messages: List[Dict[str, str]] = [
                     {"role": "system", "content": "Verify the following claim using only the provided repo snippets and known facts. Return ONLY valid JSON with keys: verified (bool), note (str). Do not include any other text or explanations."},
