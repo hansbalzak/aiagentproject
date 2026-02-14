@@ -754,28 +754,30 @@ def main():
         stdscr.nodelay(1)
         stdscr.timeout(100)
 
+        user_input = ""
+        assistant_response = ""
+
         while True:
             stdscr.clear()
             stdscr.addstr(0, 0, "User: ")
-            user_input = ""
-            while True:
-                key = stdscr.getch()
-                if key == curses.KEY_ENTER or key == 10:
-                    break
-                elif key == curses.KEY_BACKSPACE or key == 127:
-                    user_input = user_input[:-1]
-                elif key != -1:
-                    user_input += chr(key)
-                stdscr.addstr(0, 6, user_input)
-                stdscr.refresh()
+            stdscr.addstr(0, 6, user_input)
+            stdscr.addstr(2, 0, "Assistant: " + assistant_response)
+            stdscr.refresh()
+
+            key = stdscr.getch()
+            if key == curses.KEY_ENTER or key == 10:
+                if user_input.strip():
+                    assistant_response = ai.chat(user_input)
+                    user_input = ""
+                else:
+                    assistant_response = ""
+            elif key == curses.KEY_BACKSPACE or key == 127:
+                user_input = user_input[:-1]
+            elif key != -1:
+                user_input += chr(key)
 
             if user_input in ("/exit", "/quit"):
                 break
-
-            response = ai.chat(user_input)
-            stdscr.addstr(2, 0, "Assistant: " + response)
-            stdscr.refresh()
-            time.sleep(1)
 
     curses.wrapper(tui)
 
