@@ -1,4 +1,7 @@
 # Cognitive Exoskeleton
+<p align="center">
+  <img src="assets/cogex.jpg" width="600">
+</p>
 
 ⚠️ LICENSED UNDER A STRICT NON-COMMERCIAL RESEARCH LICENSE  
 See LICENSE: https://raw.githubusercontent.com/hansbalzak/aiagentproject/main/license.md
