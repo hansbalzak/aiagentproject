@@ -415,6 +415,8 @@ class SimpleAI:
         messages.extend(self.conversation)
         messages.append({"role": "user", "content": user_text})
 
+        trace_id = str(uuid.uuid4())
+
         if stream:
             response = self._post_chat_stream(messages, self.temperature, self.max_tokens)
             assistant = ""
@@ -436,7 +438,7 @@ class SimpleAI:
             self.conversation.append({"role": "assistant", "content": assistant})
             self.trim_conversation()
             self.save_conversation()
-            self.log_event("assistant_response_generated", {"length": len(assistant), "hash": _hash_content(assistant)})
+            self.log_event("assistant_response_generated", {"length": len(assistant), "hash": _hash_content(assistant)}, trace_id=trace_id)
             return assistant
         else:
             ok, response = self._post_chat(messages, self.temperature, self.max_tokens)
@@ -483,7 +485,7 @@ class SimpleAI:
                 self.rewrite_claims(self.claims[-500:])
                 print(f"(logged {len(new_claims)} claims; /claims to view)")
 
-            self.log_event("assistant_response_generated", {"length": len(assistant), "hash": _hash_content(assistant)})
+            self.log_event("assistant_response_generated", {"length": len(assistant), "hash": _hash_content(assistant)}, trace_id=trace_id)
             return assistant
 
     def _contains_uncertainty_markers(self, text: str) -> bool:
@@ -966,10 +968,12 @@ class SimpleAI:
                 if self.identity_freeze["freeze_core_preferences"]:
                     new_identity["preferences"] = self.identity["preferences"]
 
-                if new_identity != self.identity:
+                old_identity = self.identity
+                if new_identity != old_identity:
                     self.identity = new_identity
                     self.save_identity(new_identity)
-                    self.log_event("identity_updated", {"diff": {k: (self.identity[k], new_identity[k]) for k in self.identity if self.identity[k] != new_identity[k]}})
+                    diff = {k: (old_identity[k], new_identity[k]) for k in old_identity if old_identity[k] != new_identity[k]}
+                    self.log_event("identity_updated", {"diff": diff})
                 else:
                     self.log_event("identity_update_skipped", {"reason": "no_changes"})
             else:
@@ -1131,10 +1135,17 @@ class SimpleAI:
                 if claim["status"] == "corrected" or claim["status"] == "retracted":
                     return f"Claim {claim_id} is already {claim['status']}. No need to verify."
 
+                keywords = [kw for kw in claim["claim"].split() if len(kw) > 4]
+                snippets = []
+                for keyword in keywords:
+                    snippets.extend(self.search_repo(keyword)[:10])
+
+                snippets = list(set(snippets))[:10]
+
                 messages: List[Dict[str, str]] = [
                     {"role": "system", "content": "Verify the following claim using only the provided repo snippets and known facts. Return ONLY valid JSON with keys: verified (bool), note (str). Do not include any other text or explanations."},
                     {"role": "user", "content": claim["claim"]},
-                    {"role": "user", "content": "Repo snippets:\n" + "\n".join([f"File: {rel_path}, Line: {line_no}, Context: {context}" for rel_path, line_no, context in self.search_repo(claim["claim"])[:10]])}
+                    {"role": "user", "content": "Repo snippets:\n" + "\n".join([f"File: {rel_path}, Line: {line_no}, Context: {context}" for rel_path, line_no, context in snippets])}
                 ]
 
                 ok, response = self._post_chat(messages, 0.0, 200, stream=False)
@@ -1343,8 +1354,7 @@ class SimpleAI:
         _atomic_write_json(self.identity_freeze_path, self.identity_freeze)
         self.log_event("identity_freeze_saved", self.identity_freeze)
 
-    def log_trace(self, user_input: str, assistant_response: str) -> None:
-        trace_id = str(uuid.uuid4())
+    def log_trace(self, user_input: str, assistant_response: str, trace_id: str) -> None:
         trace_entry = {
             "trace_id": trace_id,
             "timestamp": datetime.now().isoformat(),
@@ -1399,7 +1409,7 @@ def main():
                             assistant_response = response
                         else:
                             assistant_response = ai.chat(user_input, stream=args.stream)
-                        ai.log_trace(user_input, assistant_response)
+                        ai.log_trace(user_input, assistant_response, ai.trace_id)
                         user_input = ""
                     else:
                         assistant_response = ""
@@ -1419,7 +1429,7 @@ def main():
                 print("Xero:", response)
             else:
                 assistant_response = ai.chat(user_input, stream=args.stream)
-                ai.log_trace(user_input, assistant_response)
+                ai.log_trace(user_input, assistant_response, ai.trace_id)
 
 if __name__ == "__main__":
     main()
