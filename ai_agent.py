@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Tuple
 import threading
 import time
 import curses
+import signal
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -139,6 +140,10 @@ class SimpleAI:
         # Reflect sampling
         self.reflect_counter = 0
         self.reflect_interval = 5
+
+        # Register signal handler to remove lockfile on exit
+        signal.signal(signal.SIGINT, self.handle_exit)
+        signal.signal(signal.SIGTERM, self.handle_exit)
 
     # --------- Persistence ---------
     def ensure_personality_file(self) -> None:
