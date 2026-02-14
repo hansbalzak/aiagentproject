@@ -254,7 +254,7 @@ class SimpleAI:
         return claims
 
     def append_claims(self, claims: List[Dict[str, Any]]) -> None:
-        with self.claims_path.open("a", encoding="utf-8") as f:
+        with self.claims_path.open("a", encoding='utf-8') as f:
             for claim in claims:
                 f.write(json.dumps(claim, ensure_ascii=False) + "\n")
 
@@ -902,7 +902,24 @@ class SimpleAI:
         try:
             claims = json.loads(assistant)
             if isinstance(claims, list) and all(isinstance(c, dict) and "claim" in c and "topic" in c for c in claims):
-                return claims
+                new_claims = []
+                for claim in claims:
+                    new_claim = {
+                        "id": (max([c.get("id", 0) for c in self.claims], default=0) + 1),
+                        "claim": claim["claim"],
+                        "topic": claim["topic"],
+                        "confidence": 0.6,
+                        "status": "active",
+                        "created_at": datetime.now().isoformat(),
+                        "last_seen_at": datetime.now().isoformat(),
+                        "source": "assistant",
+                        "corrections": []
+                    }
+                    new_claims.append(new_claim)
+                self.claims.extend(new_claims)
+                self.append_claims(new_claims)
+                self.rewrite_claims(self.claims[-500:])
+                return new_claims
             else:
                 logger.warning("Invalid claims JSON received.")
                 return []
@@ -981,7 +998,7 @@ class SimpleAI:
                 messages: List[Dict[str, str]] = [
                     {"role": "system", "content": "Verify the following claim using only the provided repo snippets and known facts. Return ONLY valid JSON with keys: verified (bool), note (str). Do not include any other text or explanations."},
                     {"role": "user", "content": claim["claim"]},
-                    {"role": "user", "content": "Repo snippets:\n" + "\n".join(self.search_repo(claim["topic"])[:10])}
+                    {"role": "user", "content": "Repo snippets:\n" + "\n".join([f"File: {rel_path}, Line: {line_no}, Context: {context}" for rel_path, line_no, context in self.search_repo(claim["topic"])[:10]])}
                 ]
 
                 ok, response = self._post_chat(messages, 0.0, 200, stream=False)
@@ -1087,6 +1104,22 @@ class SimpleAI:
 
         return "Evaluation completed. Results stored in eval/results.jsonl."
 
+    def log_trace(self, user_text: str, assistant_response: str, errors: List[str] = []) -> None:
+        trace_entry = {
+            "trace_id": self.trace_id,
+            "timestamp": datetime.now().isoformat(),
+            "model": self.model,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "user_text_length": len(user_text),
+            "assistant_response_length": len(assistant_response),
+            "circuit_breaker_active": self.circuit_breaker_active,
+            "errors": errors
+        }
+        trace_file = traces_dir / f"{datetime.now().strftime('%Y-%m-%d')}.jsonl"
+        with trace_file.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(trace_entry, ensure_ascii=False) + "\n")
+
 def main():
     parser = argparse.ArgumentParser(description="Run the AI agent.")
     parser.add_argument("--base-url", default=os.getenv("BASE_URL", "http://127.0.0.1:8080/v1"), help="Base URL for the LLM API")
@@ -1125,6 +1158,7 @@ def main():
                             assistant_response = response
                         else:
                             assistant_response = ai.chat(user_input, stream=args.stream)
+                        ai.log_trace(user_input, assistant_response)
                         user_input = ""
                     else:
                         assistant_response = ""
@@ -1143,7 +1177,8 @@ def main():
                     break
                 print("Xero:", response)
             else:
-                print("Xero:", ai.chat(user_input, stream=args.stream))
+                assistant_response = ai.chat(user_input, stream=args.stream)
+                ai.log_trace(user_input, assistant_response)
 
 if __name__ == "__main__":
     main()
