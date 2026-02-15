@@ -896,47 +896,6 @@ class SimpleAI:
 
         self.log_event("self_reflected", {"quality": quality, "uncertainty": uncertainty, "memory_suggestion": memory_suggestion})
 
-    def fallback_reflect(self, assistant_reply: str) -> None:
-        quality = "Good"
-        uncertainty = "Low"
-        memory_suggestions = []
-
-        # Simple reflection logic
-        if len(assistant_reply) < 10:
-            quality = "Poor"
-        if "I'm not sure" in assistant_reply:
-            uncertainty = "High"
-        if "I don't know" in assistant_reply:
-            uncertainty = "High"
-        if "I can't help with that" in assistant_reply:
-            uncertainty = "High"
-        if "I don't understand" in assistant_reply:
-            uncertainty = "High"
-        if "I'm sorry" in assistant_reply:
-            uncertainty = "High"
-        if "I'm unable to" in assistant_reply:
-            uncertainty = "High"
-        if "I'm not capable of" in assistant_reply:
-            uncertainty = "High"
-        if "I'm not equipped to" in assistant_reply:
-            uncertainty = "High"
-        if "I'm not programmed to" in assistant_reply:
-            uncertainty = "High"
-        if "I'm not designed to" in assistant_reply:
-            uncertainty = "High"
-        if "I'm not built to" in assistant_reply:
-            uncertainty = "High"
-
-        # Log the reflection
-        reflection_entry = f"Timestamp: {datetime.now().isoformat()}\n"
-        reflection_entry += f"Assistant Reply: {assistant_reply}\n"
-        reflection_entry += f"Quality: {quality}\n"
-        reflection_entry += f"Uncertainty: {uncertainty}\n"
-        reflection_entry += f"Memory Suggestions: {memory_suggestions}\n\n"
-
-        with self.self_reflection_log_path.open("a", encoding="utf-8") as f:
-            f.write(reflection_entry)
-
     def update_identity_from_conversation(self) -> None:
         self._update_circuit_breaker_state()
         if self.circuit_breaker_active or self.degraded_mode:
