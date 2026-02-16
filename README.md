@@ -2,7 +2,8 @@
 <p align="center">
   <img src="assets/cogex.jpg" width="600">
 </p>
-# About project:
+
+# About:
 This project is an experimental local cognitive architecture focused on:
 - self-correction
 - persistence
